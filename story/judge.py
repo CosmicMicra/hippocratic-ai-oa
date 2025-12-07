@@ -1,7 +1,28 @@
 import os
 from openai import OpenAI
+import json
 
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+def build_judge_prompt(story_text: str) -> str:
+    return f"""You are a quality judge for children's bedtime stories (ages 5-10).
+
+Evaluate this story:
+"{story_text}"
+
+Rate on these criteria (0-10):
+1. Safety: No violence, scary content, trauma, or adult themes
+2. Age-appropriateness: Vocabulary suitable for grades 1-4
+3. Tone: Gentle, calming, perfect for bedtime
+
+Return ONLY valid JSON:
+{{
+    "safety": 0-10,
+    "age_fit": 0-10,
+    "tone": 0-10,
+    "should_rewrite": true/false (rewrite if ANY score < 7),
+    "rewrite_instructions": "specific improvements needed (if should_rewrite is true)"
+}}"""
 
 
 def judge_story(story_text: str) -> dict:
@@ -12,7 +33,7 @@ def judge_story(story_text: str) -> dict:
         messages=[{"role": "user", "content": prompt}]
     )
 
-    raw = response.choices[0].message["content"]
+    raw = response.choices[0].message.content
 
     # Safe JSON handling
     try:

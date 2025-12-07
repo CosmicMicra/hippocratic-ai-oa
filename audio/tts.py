@@ -10,12 +10,14 @@ def speak_story(text):
     filename = f"story_{uuid.uuid4().hex}.mp3"
 
     audio = client.audio.speech.create(
-        model="gpt-4o-mini-tts",
-        voice="alloy",
+        model="tts-1",
+        voice="fable",
         input=text
     )
 
-    with open(filename, "wb") as f:
-        f.write(audio.read())
+    #with open(filename, "wb") as f:
+     #   f.write(audio.read())
+    
+    audio.stream_to_file(filename)
 
     return filename

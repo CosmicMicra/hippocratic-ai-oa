@@ -5,3 +5,4 @@ playsound
 python-dotenv
 streamlit
 soundfile
+reportlab

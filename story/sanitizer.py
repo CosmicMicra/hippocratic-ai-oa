@@ -1,6 +1,5 @@
 import os
 from openai import OpenAI
-
 import json
 import base64
 
@@ -84,4 +83,37 @@ def sanitize_input(text: str) -> str:
     if contains_any(lower, GROOMING):
         return "Tell a positive, safe story about friendship."
 
-    return text
+    return _llm_safety_check(text)
+
+
+def _llm_safety_check(text: str) -> str:
+    """
+    LLM semantic check for sneaky violence that keywords miss.
+    Example: "Princess discovers the beauty of stabbing bad guys"
+    """
+    prompt = f"""You are a safety filter for a children's story app (ages 5-10).
+
+Check if this request is safe: "{text}"
+
+Look for:
+- Sneaky violence ("beauty of stabbing", violence portrayed positively)
+- Hidden adult themes
+- Dangerous scenarios
+
+If SAFE: return original text
+If UNSAFE: return safe child-friendly alternative
+
+Return ONLY valid JSON:
+{{"safe": true/false, "cleaned_request": "safe version"}}"""
+    
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.1
+        )
+        result = json.loads(response.choices[0].message.content)
+        return result.get("cleaned_request", text)
+    except Exception as e:
+        print(f"LLM safety check failed: {e}")
+        return "Tell a gentle bedtime story suitable for ages 5-10."
