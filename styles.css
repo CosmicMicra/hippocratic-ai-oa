@@ -1,0 +1,93 @@
+/* Hide Streamlit header */
+header[data-testid="stHeader"] {
+    display: none !important;
+}
+
+/* Background */
+.stApp {
+    background: linear-gradient(135deg, rgba(209, 196, 233, 0.4) 0%, rgba(241, 224, 238, 0.4) 100%),
+                url('https://images.unsplash.com/photo-1519681393784-d120267933ba?w=1920&q=80');
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed;
+    min-height: 100vh;
+}
+
+/* top  margin */
+[data-testid="stAppViewContainer"] {
+    padding-top: 8vh !important;
+    padding-bottom: 8vh !important;
+    overflow-y:auto !important ;
+}
+
+.stApp [data-testid="stAppViewContainer"] > .main {
+    min-height: 100vh !important;
+}
+
+/* White card */
+.block-container {
+    background: white !important;
+    border-radius: 24px !important;
+    padding: 3rem 2rem 5rem 2rem !important;
+    max-width: 800px !important;
+    min-height: auto !important;
+    
+    margin: 0 auto !important;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2) !important;
+}
+
+/* Typography */
+h1 {
+    text-align: center;
+    color: #4a4a4a !important;
+    font-size: 2.5rem !important;
+    font-weight: 700 !important;
+}
+
+.question-text {
+    color: #7d6ba8 !important;
+    font-size: 1.4rem !important;
+    font-weight: 600 !important;
+    text-align: center !important;
+    margin: 2rem 0 1.5rem 0 !important;
+}
+
+/* Radio pills */
+.stRadio > div {
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+.stRadio label {
+    background: #f0ebf8 !important;
+    padding: 0.7rem 1.5rem !important;
+    border-radius: 20px !important;
+    color: #6f5ba5 !important;
+}
+
+.stRadio input[type="radio"] {
+    display: none !important;
+}
+
+/* Generate button */
+.stButton button {
+    background: linear-gradient(135deg, #b593d9 0%, #9d7cc5 100%) !important;
+    color: white !important;
+    border-radius: 16px !important;
+    height: 60px !important;
+}
+
+/* Action buttons */
+.stdownload_button button{
+    background: linear-gradient(135deg, #b593d9 0%, #9d7cc5 100%) !important;
+    color: white !important;
+    border-radius: 16px !important;
+    height: 60px !important;
+}
+
+/* Story box */
+.story-container {
+    background: #f8f9fa;
+    padding: 1.5rem;
+    border-radius: 12px;
+}
