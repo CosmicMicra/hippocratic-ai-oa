@@ -78,7 +78,7 @@ h1 {
 }
 
 /* Action buttons */
-.stdownload_button button{
+.stDownloadButton button{
     background: linear-gradient(135deg, #b593d9 0%, #9d7cc5 100%) !important;
     color: white !important;
     border-radius: 16px !important;

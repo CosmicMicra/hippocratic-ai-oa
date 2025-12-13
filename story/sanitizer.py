@@ -2,8 +2,14 @@ import os
 from openai import OpenAI
 import json
 import base64
+import sys
+import re
 
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+#-----Logging------
+def log(msg):
+    print(f"  {msg}", file=sys.stderr, flush=True)
 
 # ---------- Keyword Lists ----------
 VIOLENCE = [
@@ -13,8 +19,7 @@ VIOLENCE = [
 ]
 
 ADULT = [
-    "naked", "kiss", "romance", "boyfriend", "girlfriend",
-    "love story", "sexy", "marry me"
+    "naked", "kiss", "romance", "boyfriend", "girlfriend", "sexy", "marry me"
 ]
 
 TRAUMA = [
@@ -23,8 +28,8 @@ TRAUMA = [
 ]
 
 GROOMING = [
-    "secret", "special friend", "don't tell", "trust me only",
-    "come with me", "just you and me"
+    "secret", "secret playtime", "special friend", "don't tell", "goes alone", "don't tell dad", "don't tell mom",
+    "just you and me", "private time", "does not tell adults", "no one else needs to know", "secret game", "special time together alone"
 ]
 
 JAILBREAK = [
@@ -36,8 +41,9 @@ JAILBREAK = [
 
 # ---------- Detection Helpers ----------
 def contains_any(text, keywords):
+    """Check if any keyword appears as a complete word"""
     t = text.lower()
-    return any(word in t for word in keywords)
+    return any(re.search(r'\b' + re.escape(word) + r'\b', t) for word in keywords)
 
 
 def decode_if_encoded(text: str) -> str:
@@ -46,17 +52,55 @@ def decode_if_encoded(text: str) -> str:
     """
     try:
         decoded = base64.b64decode(text).decode("utf-8")
+        log("Detected: base64 encoding")
         return decoded
     except Exception:
         return text
 
 
-# ---------- Sanitizer ----------
+
+#--- check if detected grooming pattern is actual grooming or normal kid and secret stuff.----
+    
+def _is_actual_grooming(text: str) -> bool:
+        """Quick LLM check for grooming"""
+        
+        prompt = f""" You are a child safety expert analyzing story requests. Focus on adult–child relationships, isolation, secrecy, or exclusive bonds. the adult might use affectionate or symbolic titles for the child  (eg. prince, princess, sweetheart, baby). 
+        RED FLAGS (grooming):
+        - Adult asking child/prince/princess(anyword to symbolize the child) to spend time alone in private
+        - Asking child to keep secrets from parents or caregivers
+        - Describing adult-child relationship as unusually special or exclusive
+        - Using flattery or favoritism to manipulate child
+        analyze the following request:
+        "{text}"
+
+        Question: Does this prompt describe an adult interacting with a child in a secretive, isolating, or manipulative way?
+
+        Reply ONLY: yes or no"""
+    
+        try:
+            response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0
+            )
+
+            llm_response = response.choices[0].message.content
+            return "yes" in llm_response.lower()
+        except:
+            return True
+
+
+# ----Sanitizer ---------
+
 def sanitize_input(text: str) -> str:
     """
     Removes unsafe content, jailbreaks, adult themes, encoded attacks.
     Ensures safe child-appropriate request.
+    Returns a tuple: (text, reason)
     """
+
+    log("SANITIZER: Checking input")
+    log(f"  → Input: '{text[:50]}...'")
 
     # Decode encoded malicious text
     text = decode_if_encoded(text)
@@ -65,26 +109,44 @@ def sanitize_input(text: str) -> str:
 
     # Jailbreaks
     if contains_any(lower, JAILBREAK):
-        return "Tell a gentle bedtime story suitable for ages 5–10."
+        log("Detected: jailbreak attempt")
+        log("BLOCKED: Replaced with safe alternative")
+        return "Tell an exciting adventure with challenges solved peacefully suitable for ages 5–10."
 
+    
     # Adult themes
     if contains_any(lower, ADULT):
+        log("Detected: adult content")
+        log("BLOCKED: Replaced with safe alternative")
         return "Tell a friendly, innocent bedtime story for kids."
-
+        
     # Violence or scary themes
     if contains_any(lower, VIOLENCE):
+        log("Detected: violence/scary keywords")
+        log("BLOCKED: Replaced with safe alternative")
         return "Tell a peaceful and sweet story about kindness."
 
     # Trauma
     if contains_any(lower, TRAUMA):
+        log("  ⚠️  Detected: trauma themes")
+        log("⚠️  FLAGGED: Replaced with comforting alternative")
         return "Tell a soft, comforting bedtime story."
 
     # Grooming / predatory patterns
     if contains_any(lower, GROOMING):
-        return "Tell a positive, safe story about friendship."
+        log("  🚨 CRITICAL: grooming pattern detected")
+        
+        if _is_actual_grooming(text):
+            log("🚫 BLOCKED: grooming")
 
+            return "Tell a positive, safe story about friendship and sharing everything with parents."
+        
+        log("  ✅ Innocent use - continuing to semantic check")
+
+
+#-------Semantic Check-----
+    log("  → Running LLM semantic check...")
     return _llm_safety_check(text)
-
 
 def _llm_safety_check(text: str) -> str:
     """
@@ -93,18 +155,18 @@ def _llm_safety_check(text: str) -> str:
     """
     prompt = f"""You are a safety filter for a children's story app (ages 5-10).
 
-Check if this request is safe: "{text}"
+    Check if this request is safe: "{text}"
 
-Look for:
-- Sneaky violence ("beauty of stabbing", violence portrayed positively)
-- Hidden adult themes
-- Dangerous scenarios
+    Look for:
+    - Sneaky violence ("beauty of stabbing", violence portrayed positively)
+    - Hidden adult themes
+    - Dangerous scenarios
 
-If SAFE: return original text
-If UNSAFE: return safe child-friendly alternative
+    If SAFE: return original text
+    If UNSAFE: return safe child-friendly alternative
 
-Return ONLY valid JSON:
-{{"safe": true/false, "cleaned_request": "safe version"}}"""
+    Return ONLY valid JSON:
+    {{"safe": true/false, "cleaned_request": "safe version"}}"""
     
     try:
         response = client.chat.completions.create(
@@ -113,7 +175,15 @@ Return ONLY valid JSON:
             temperature=0.1
         )
         result = json.loads(response.choices[0].message.content)
+
+        if result.get("safe", True):
+            log("PASSED: LLM confirmed safe")
+        else:
+            log("LLM detected: hidden unsafe content")
+            log("BLOCKED: Replaced with safe alternative")
         return result.get("cleaned_request", text)
+    
+    
     except Exception as e:
-        print(f"LLM safety check failed: {e}")
+        log("  → Using fallback safe prompt")
         return "Tell a gentle bedtime story suitable for ages 5-10."

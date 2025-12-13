@@ -2,8 +2,9 @@ import streamlit as st
 from main import create_story
 from audio.transcriber import transcribe_audio
 from audio.tts import speak_story
-
+from story.sanitizer import sanitize_input
 from utils.pdf_generator import generate_pdf
+
 
 #page configuration
 st.set_page_config(
@@ -13,13 +14,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-#load css
-def load_css(file_path):
-    with open(file_path) as f:
-        st.markdown(f'<style>{f.read()}</style>', unsafe_allow_html=True)
-
-#load_css('styles.css')
-        
+#load css('styles.css')
 with open('styles.css') as f:
     st.markdown(f'<style>{f.read()}</style>', unsafe_allow_html=True)
 
@@ -36,8 +31,6 @@ if 'story' not in st.session_state:
     st.session_state.story = None
 if 'transcribed_text' not in st.session_state:
     st.session_state.transcribed_text = None
-if 'audio_processed' not in st.session_state: 
-    st.session_state.audio_processed = False
 if 'audio_file' not in st.session_state:  
     st.session_state.audio_file = None 
 
@@ -61,12 +54,12 @@ if input_mode == "🎤 Speak":
     
     if audio_bytes:
         # Automatically transcribe when audio is recorded
-        if not st.session_state.audio_processed:
+        if 'last_audio_id' not in st.session_state or id(audio_bytes) != st.session_state.last_audio_id:
             with st.spinner("Transcribing your audio..."):
                 try:
                     transcribed = transcribe_audio(audio_bytes)
                     st.session_state.transcribed_text = transcribed
-                    st.session_state.audio_processed = True
+                    st.session_state.last_audio_id = id(audio_bytes)
                     st.success("✅ Audio transcribed!")
                 except Exception as e:
                     st.error(f" Transcription error: {e}")
@@ -81,34 +74,39 @@ if input_mode == "🎤 Speak":
                 "Edit your request if needed:",
                 value=st.session_state.transcribed_text,
                 height=100,
-                key="edit_transcript"
+                key=f"edit_transcript_{st.session_state.last_audio_id}"
             )
             
             # Use edited text as user request
             user_request = edited_text if edited_text.strip() else None
+    else: 
+        if 'last_audio_id' in st.session_state:
+            del st.session_state.last_audio_id
+        st.session_state.transcribed_text = None
     
-    # Reset audio_processed when audio is cleared
-    else:
-        if st.session_state.audio_processed:
-            st.session_state.audio_processed = False
-            st.session_state.transcribed_text = None
-
-
 
 #option 2 - category
             
 elif input_mode == "🧸 Category":
     st.markdown("#### 🧸 Choose from Available Categories")
     
-    story_type_choice = st.selectbox(
-        "Pick one:",
-        ["Select one...", "Princess", "Animals", "Cars", "Mixed / Surprise"],
-        index=0
-        #label_visibility="collapsed"
+    story_categories= st.multiselect(
+        "Pick one or more!:",
+        ["Princess", "Animals", "Cars", "Surprise Me!", "Space", "Adventure", "Underwater"],
+        default=None,
+        max_selections=3
     )
     
-    if story_type_choice != "Select one...":
-        user_request = f"A {story_type_choice.lower()} story for kids."
+    if story_categories: 
+        if "Surprise Me!" in story_categories:
+            user_request = "Create a surprise bedtime story with mixed themes and creative elements for kids"
+        elif len(story_categories) == 1:
+            user_request = f"A story about {story_categories[0].lower()} for kids"
+        else:
+            categories_text = ", ".join([cat.lower() for cat in story_categories if cat != "Surprise Me!"])
+            user_request = f"A story that combines {categories_text} for kids"
+    else:
+        user_request = None
 
 
 #Option 3- type
@@ -123,16 +121,21 @@ else:
 #Generate story
         
 if st.button("✨ Generate Story", disabled=not user_request, use_container_width=True):
+
+    clean_check = sanitize_input(user_request)
+    if clean_check and "sharing everything with parents" in clean_check.lower():
+        st.error("⚠️ Inappropriate prompt for kids story")
+        st.info("Creating a safe story instead")
+    elif clean_check != user_request:
+        st.warning("Genrating appropriate story")
+
     with st.spinner("Creating your bedtime story..."):
         story = create_story(user_request)
+        
 
     st.success("Your story is ready!")
-    #st.markdown("### 📖 Your Bedtime Story")
-    #st.markdown(f'<div class="story-container">{st.session_state.story}</div>', unsafe_allow_html=True)
-
     st.session_state.story = story
     st.session_state.transcribed_text = None
-    st.session_state.audio_processed = False
     
 
 #Action buttons
@@ -168,21 +171,20 @@ if st.session_state.story:
         if st.button("🔄 New Story", use_container_width=True):
             st.session_state.story = None
             st.session_state.transcribed_text = None
-            st.session_state.audio_processed = False
             st.session_state.audio_file = None 
             st.rerun()
 
 #audio player
     if 'audio_file' in st.session_state and st.session_state.audio_file:
         st.markdown("---")
-        st.markdown("** 🎵 Now playing your story**")
+        st.markdown("**🎵 Now playing your story**")
         with open(st.session_state.audio_file, 'rb') as audio:
             st.audio(audio.read(), format='audio/mp3')
 
 #Story display
     st.markdown("")
-    st.markdown("### 📖 Your Bedtime Story")
-   
-    st.markdown(f'<div class="story-container">{st.session_state.story}</div>', unsafe_allow_html=True)
+    st.markdown("### Your Bedtime Story")
+    st.markdown(st.session_state.story)
+    #st.markdown(f'<div class="story-container">{st.session_state.story}</div>', unsafe_allow_html=True)
     
 

@@ -1,8 +1,13 @@
 import os
 from openai import OpenAI
 import json
+import sys
 
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+temperature=0
+
+def log(msg):
+    print(f"  {msg}", file=sys.stderr, flush=True)
 
 def build_judge_prompt(story_text: str) -> str:
     return f"""You are a quality judge for children's bedtime stories (ages 5-10).
@@ -26,6 +31,9 @@ Return ONLY valid JSON:
 
 
 def judge_story(story_text: str) -> dict:
+    log("JUDGE: Evaluating story")
+    log(f"  → Story length: {len(story_text)} chars")
+
     prompt = build_judge_prompt(story_text)
 
     response = client.chat.completions.create(
@@ -52,4 +60,16 @@ def judge_story(story_text: str) -> dict:
     for key in ["safety", "age_fit", "tone", "should_rewrite", "rewrite_instructions"]:
         data.setdefault(key, None)
 
+    log(f"  → Safety: {data.get('safety', 'N/A')}/10")
+    log(f"  → Age-fit: {data.get('age_fit', 'N/A')}/10")
+    log(f"  → Tone: {data.get('tone', 'N/A')}/10")
+
+    if data.get('should_rewrite', False):
+            log("NOT APPROVED: Needs rewrite")
+            log(f"  → Issues: {data.get('rewrite_instructions', 'Unknown')}")
+    else:
+        log("APPROVED: Story is good!")
+        
     return data
+
+    
