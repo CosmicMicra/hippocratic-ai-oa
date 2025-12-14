@@ -1,7 +1,4 @@
 
-# Hippocratic AI OA - Submission by Soniya Phaltane
-  
-
 ## Sleepy Seeds – Interactive Bedtime Story Application
 
 Sleepy Seeds is an interactive bedtime story application for children aged 5–10 years, with a focus on safety, engagement, and educational value. The system uses a multi-layer safety architecture, including a keyword filter, semantic analysis, and an LLM-based judge and refiner, ensuring all stories are age-appropriate, moral-based, and calming in tone.
