@@ -127,7 +127,7 @@ if st.button("✨ Generate Story", disabled=not user_request, use_container_widt
         st.error("⚠️ Inappropriate prompt for kids story")
         st.info("Creating a safe story instead")
     elif clean_check != user_request:
-        st.warning("Genrating appropriate story")
+        st.warning("Generating appropriate story")
 
     with st.spinner("Creating your bedtime story..."):
         story = create_story(user_request)

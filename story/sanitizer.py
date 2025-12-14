@@ -27,7 +27,7 @@ TRAUMA = [
     "crying", "fear", "injury"
 ]
 
-GROOMING = [
+INAPPROPRIATE = [
     "secret", "secret playtime", "special friend", "don't tell", "goes alone", "don't tell dad", "don't tell mom",
     "just you and me", "private time", "does not tell adults", "no one else needs to know", "secret game", "special time together alone"
 ]
@@ -59,35 +59,35 @@ def decode_if_encoded(text: str) -> str:
 
 
 
-#--- check if detected grooming pattern is actual grooming or normal kid and secret stuff.----
+#--- check if detected inappropriate pattern is actual inappropriate or normal kid and secret stuff.----
     
 def _is_actual_grooming(text: str) -> bool:
-        """Quick LLM check for grooming"""
-        
-        prompt = f""" You are a child safety expert analyzing story requests. Focus on adult–child relationships, isolation, secrecy, or exclusive bonds. the adult might use affectionate or symbolic titles for the child  (eg. prince, princess, sweetheart, baby). 
-        RED FLAGS (grooming):
-        - Adult asking child/prince/princess(anyword to symbolize the child) to spend time alone in private
-        - Asking child to keep secrets from parents or caregivers
-        - Describing adult-child relationship as unusually special or exclusive
-        - Using flattery or favoritism to manipulate child
-        analyze the following request:
-        "{text}"
+    prompt = f"""
+You are a CHILD SAFETY CLASSIFIER.
 
-        Question: Does this prompt describe an adult interacting with a child in a secretive, isolating, or manipulative way?
+Does the following input suggest Grooming?
+Grooming includes secrecy, isolation, manipulation, or exclusive adult-child bonds.
 
-        Reply ONLY: yes or no"""
-    
-        try:
-            response = client.chat.completions.create(
+Rules:
+- If unclear, answer YES.
+- Output exactly YES or NO.
+
+Input:
+{text}
+
+Answer:
+"""
+
+    try:
+        r = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[{"role": "user", "content": prompt}],
             temperature=0
-            )
+        )
 
-            llm_response = response.choices[0].message.content
-            return "yes" in llm_response.lower()
-        except:
-            return True
+        return r.choices[0].message.content.strip().upper() != "NO"
+    except:
+        return True
 
 
 # ----Sanitizer ---------
@@ -132,12 +132,12 @@ def sanitize_input(text: str) -> str:
         log("⚠️  FLAGGED: Replaced with comforting alternative")
         return "Tell a soft, comforting bedtime story."
 
-    # Grooming / predatory patterns
-    if contains_any(lower, GROOMING):
-        log("  🚨 CRITICAL: grooming pattern detected")
+    # inappropriate 
+    if contains_any(lower, INAPPROPRIATE):
+        log("  🚨 CRITICAL: inappropriate pattern detected")
         
         if _is_actual_grooming(text):
-            log("🚫 BLOCKED: grooming")
+            log("🚫 BLOCKED: inappropriate")
 
             return "Tell a positive, safe story about friendship and sharing everything with parents."
         
