@@ -22,14 +22,14 @@ Run application:
 streamlit run app.py
 ```
 
-Or Use Docker Build
+###Or Use Docker Build
 
 
-# Build Docker image
+**Build Docker image**
 ```
 docker build -t sleepy-seeds 
 ```
-# Run Docker container
+**Run Docker container**
 ```
 docker run -p 8501:8501 sleepy-seeds
 ```
